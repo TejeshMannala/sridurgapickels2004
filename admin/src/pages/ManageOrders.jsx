@@ -9,14 +9,23 @@ function ManageOrders() {
   const [statusDraft, setStatusDraft] = useState({})
 
   const load = async () => {
-    const response = await api.get('/admin/orders', authHeaders(token))
-    const list = response.data?.data || []
-    setOrders(list)
-    const draft = {}
-    list.forEach((order) => {
-      draft[order._id] = order.orderStatus
-    })
-    setStatusDraft(draft)
+    if (!token) return
+    try {
+      const response = await api.get('/admin/orders', authHeaders(token))
+      const list = response.data?.data || []
+      setOrders(list)
+      const draft = {}
+      list.forEach((order) => {
+        draft[order._id] = order.orderStatus
+      })
+      setStatusDraft(draft)
+    } catch (error) {
+      setOrders([])
+      setStatusDraft({})
+      if (error?.response?.status !== 401) {
+        toast.error(error?.response?.data?.message || 'Failed to load orders')
+      }
+    }
   }
 
   useEffect(() => {

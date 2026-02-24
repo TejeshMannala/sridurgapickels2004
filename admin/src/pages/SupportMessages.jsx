@@ -10,8 +10,16 @@ function SupportMessages() {
   const [sendingReply, setSendingReply] = useState({})
 
   const load = async () => {
-    const response = await api.get('/admin/support', authHeaders(token))
-    setMessages(response.data?.data || [])
+    if (!token) return
+    try {
+      const response = await api.get('/admin/support', authHeaders(token))
+      setMessages(response.data?.data || [])
+    } catch (error) {
+      setMessages([])
+      if (error?.response?.status !== 401) {
+        toast.error(error?.response?.data?.message || 'Failed to load support messages')
+      }
+    }
   }
 
   useEffect(() => {

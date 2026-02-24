@@ -28,12 +28,20 @@ function ManageProducts() {
   const [currentPage, setCurrentPage] = useState(0)
 
   const load = async () => {
-    const [productRes, categoryRes] = await Promise.all([
-      api.get('/admin/products', authHeaders(token)),
-      api.get('/categories')
-    ])
-    setProducts(productRes.data?.data || [])
-    setCategories(categoryRes.data?.data || [])
+    if (!token) return
+    try {
+      const [productRes, categoryRes] = await Promise.all([
+        api.get('/admin/products', authHeaders(token)),
+        api.get('/categories')
+      ])
+      setProducts(productRes.data?.data || [])
+      setCategories(categoryRes.data?.data || [])
+    } catch (error) {
+      setProducts([])
+      if (error?.response?.status !== 401) {
+        toast.error(error?.response?.data?.message || 'Failed to load products')
+      }
+    }
   }
 
   useEffect(() => {

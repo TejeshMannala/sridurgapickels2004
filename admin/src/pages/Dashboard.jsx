@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Activity, Boxes, IndianRupee, MessageSquare, ShoppingBag, Users } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { api, authHeaders } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -9,8 +10,16 @@ function Dashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const response = await api.get('/admin/dashboard/summary', authHeaders(token))
-      setSummary(response.data?.data || null)
+      if (!token) return
+      try {
+        const response = await api.get('/admin/dashboard/summary', authHeaders(token))
+        setSummary(response.data?.data || null)
+      } catch (error) {
+        setSummary(null)
+        if (error?.response?.status !== 401) {
+          toast.error(error?.response?.data?.message || 'Failed to load dashboard data')
+        }
+      }
     }
     load()
   }, [token])

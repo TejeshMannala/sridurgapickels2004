@@ -1,5 +1,5 @@
-import { createContext, useContext, useMemo, useState } from 'react'
-import { api } from '../services/api'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { api, AUTH_EXPIRED_EVENT } from '../services/api'
 
 const AuthContext = createContext(null)
 const KEY = 'pickles_admin_auth'
@@ -30,6 +30,15 @@ export function AuthProvider({ children }) {
     setAuth(null)
     localStorage.removeItem(KEY)
   }
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setAuth(null)
+      localStorage.removeItem(KEY)
+    }
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired)
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired)
+  }, [])
 
   const value = useMemo(
     () => ({

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'react-toastify'
 import { api, authHeaders } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -8,8 +9,16 @@ function ManageUsers() {
 
   useEffect(() => {
     const load = async () => {
-      const response = await api.get('/admin/users', authHeaders(token))
-      setUsers(response.data?.data || [])
+      if (!token) return
+      try {
+        const response = await api.get('/admin/users', authHeaders(token))
+        setUsers(response.data?.data || [])
+      } catch (error) {
+        setUsers([])
+        if (error?.response?.status !== 401) {
+          toast.error(error?.response?.data?.message || 'Failed to load users')
+        }
+      }
     }
     load()
   }, [token])

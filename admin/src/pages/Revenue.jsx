@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Line, Pie } from 'react-chartjs-2'
 import { ArcElement, Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from 'chart.js'
+import { toast } from 'react-toastify'
 import { api, authHeaders } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -14,12 +15,21 @@ function Revenue() {
 
   useEffect(() => {
     const load = async () => {
-      const [revenueRes, summaryRes] = await Promise.all([
-        api.get(`/admin/dashboard/revenue?range=${range}`, authHeaders(token)),
-        api.get('/admin/dashboard/summary', authHeaders(token))
-      ])
-      setPoints(revenueRes.data?.data || [])
-      setSummary(summaryRes.data?.data || null)
+      if (!token) return
+      try {
+        const [revenueRes, summaryRes] = await Promise.all([
+          api.get(`/admin/dashboard/revenue?range=${range}`, authHeaders(token)),
+          api.get('/admin/dashboard/summary', authHeaders(token))
+        ])
+        setPoints(revenueRes.data?.data || [])
+        setSummary(summaryRes.data?.data || null)
+      } catch (error) {
+        setPoints([])
+        setSummary(null)
+        if (error?.response?.status !== 401) {
+          toast.error(error?.response?.data?.message || 'Failed to load revenue data')
+        }
+      }
     }
     load()
   }, [range, token])

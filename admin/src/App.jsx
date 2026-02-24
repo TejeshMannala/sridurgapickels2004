@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider } from './context/AuthContext'
@@ -15,7 +15,7 @@ import SupportMessages from './pages/SupportMessages'
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <HashRouter>
         <Routes>
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
@@ -37,7 +37,7 @@ function App() {
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </Routes>
         <ToastContainer position="top-right" autoClose={3500} />
-      </BrowserRouter>
+      </HashRouter>
     </AuthProvider>
   )
 }
