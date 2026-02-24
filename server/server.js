@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 const User = require('./models/userModel');
+const Product = require('./models/productModel');
+const { syncCatalog } = require('./scripts/seedCatalog');
 
 // Load env vars
 dotenv.config();
@@ -169,8 +171,14 @@ const startServer = async () => {
   if (dbConnected) {
     try {
       await ensureAdminUser();
+      const productCount = await Product.estimatedDocumentCount();
+      const autoSeedEnabled = String(process.env.AUTO_SEED_CATALOG || 'true').toLowerCase() !== 'false';
+      if (autoSeedEnabled && productCount === 0) {
+        console.log('Catalog is empty. Running initial catalog seed...');
+        await syncCatalog({ shouldConnect: false, shouldReset: false });
+      }
     } catch (error) {
-      console.error(`Failed to ensure admin user: ${error.message}`);
+      console.error(`Startup sync failed: ${error.message}`);
     }
   }
 

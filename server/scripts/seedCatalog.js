@@ -142,11 +142,16 @@ const createProductsForCategory = (names, category, basePriceStart) =>
     tags: [category.slug, 'pickle', 'andhra']
   }));
 
-const seed = async () => {
+const syncCatalog = async ({ shouldConnect = true, shouldReset = null } = {}) => {
   try {
-    await connectDB();
-    const shouldReset = String(process.env.RESET_CATALOG || '').toLowerCase() === 'true';
-    if (shouldReset) {
+    if (shouldConnect) {
+      await connectDB();
+    }
+
+    const resetFlag = shouldReset !== null
+      ? shouldReset
+      : String(process.env.RESET_CATALOG || '').toLowerCase() === 'true';
+    if (resetFlag) {
       await Product.deleteMany({});
       await Category.deleteMany({});
     }
@@ -176,7 +181,7 @@ const seed = async () => {
         updateOne: {
           filter: { slug: product.slug },
           // Preserve existing docs (including custom images) unless RESET_CATALOG=true
-          update: shouldReset ? { $set: product } : { $setOnInsert: product },
+          update: resetFlag ? { $set: product } : { $setOnInsert: product },
           upsert: true
         }
       }))
@@ -184,13 +189,21 @@ const seed = async () => {
 
     const createdProducts = productWriteResult.upsertedCount || 0;
     console.log(
-      `Catalog sync complete. categories=${categories.length}, productsCreated=${createdProducts}, resetMode=${shouldReset}`
+      `Catalog sync complete. categories=${categories.length}, productsCreated=${createdProducts}, resetMode=${resetFlag}`
     );
-    process.exit(0);
+    return { categories: categories.length, productsCreated: createdProducts, resetMode: resetFlag };
   } catch (error) {
-    console.error(error);
-    process.exit(1);
+    throw error;
   }
 };
 
-seed();
+if (require.main === module) {
+  syncCatalog({ shouldConnect: true })
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+}
+
+module.exports = { syncCatalog };
