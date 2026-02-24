@@ -1,5 +1,28 @@
 const Product = require('../models/productModel');
 const Category = require('../models/categoryModel');
+const { syncCatalog } = require('../scripts/seedCatalog');
+
+let catalogSyncPromise = null;
+
+const ensureCatalogAvailable = async () => {
+  const autoSeedEnabled = String(process.env.AUTO_SEED_CATALOG || 'true').toLowerCase() !== 'false';
+  if (!autoSeedEnabled) return;
+
+  const productCount = await Product.estimatedDocumentCount();
+  if (productCount > 0) return;
+
+  if (!catalogSyncPromise) {
+    catalogSyncPromise = syncCatalog({ shouldConnect: false, shouldReset: false })
+      .catch((error) => {
+        console.error(`On-demand catalog seed failed: ${error.message}`);
+      })
+      .finally(() => {
+        catalogSyncPromise = null;
+      });
+  }
+
+  await catalogSyncPromise;
+}
 
 const getProducts = async (req, res) => {
   try {
@@ -16,6 +39,8 @@ const getProducts = async (req, res) => {
     if (search) {
       query.name = { $regex: search, $options: 'i' };
     }
+
+    await ensureCatalogAvailable();
 
     const products = await Product.find(query).populate('category', 'name slug type').sort({ createdAt: -1 });
     res.json({ success: true, data: products });
