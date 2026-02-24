@@ -1,5 +1,5 @@
 {
-  "name": "sri-kanaka-durga-pickles-server",
+  "name": "kanakadurgapickles-server",
   "version": "1.0.0",
   "description": "Backend API server for Sri Kanaka Durga Pickles e-commerce platform",
   "main": "server.js",
