@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "echo \"Server build step complete\"",
     "dev": "nodemon server.js",
     "seed": "node scripts/seedCatalog.js",
     "create-admin": "node scripts/createAdmin.js",

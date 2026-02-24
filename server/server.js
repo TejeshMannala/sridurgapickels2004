@@ -15,6 +15,16 @@ const app = express();
 // Body parser
 app.use(express.json());
 
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Sri Kanaka Durga Pickles API is running',
+    health: '/health',
+    apiHealth: '/api/v1/health'
+  });
+});
+
 // Dev logging middleware
 if (process.env.NODE_ENV === 'development') {
   try {
@@ -50,6 +60,31 @@ app.use(limiter);
 // Security headers
 const helmet = require('helmet');
 app.use(helmet());
+
+// Health checks
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    status: 'ok',
+    service: 'sri-kanaka-durga-pickles-server',
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/v1/health', (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  const statusCode = dbConnected ? 200 : 503;
+
+  res.status(statusCode).json({
+    success: dbConnected,
+    status: dbConnected ? 'ok' : 'degraded',
+    database: dbConnected ? 'connected' : 'disconnected',
+    service: 'sri-kanaka-durga-pickles-server',
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Return a clear response while DB is unavailable, instead of Mongoose buffer errors.
 app.use('/api/v1', (req, res, next) => {
