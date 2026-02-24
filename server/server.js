@@ -39,7 +39,28 @@ if (process.env.NODE_ENV === 'development') {
 
 // Enable CORS
 const cors = require('cors');
-app.use(cors());
+const allowedOrigins = new Set([
+  'https://sridurgapickels-admin.onrender.com',
+  'https://sridurgapickels.onrender.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  String(process.env.CLIENT_URL || '').trim(),
+  String(process.env.ADMIN_URL || '').trim(),
+].filter(Boolean));
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests without Origin (curl, server-to-server, health checks).
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
 // Rate limiting
 const rateLimit = require('express-rate-limit');
