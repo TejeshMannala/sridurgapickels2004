@@ -1,26 +1,6 @@
 const Product = require('../models/productModel');
 const Category = require('../models/categoryModel');
 
-const buildAiImageUrl = (name = 'Pickles Product') => {
-  const prompt = `${name} food product packshot, studio lighting, plain background, ecommerce style`
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`
-}
-
-const withAiImage = (product) => {
-  const source = product && typeof product.toObject === 'function' ? product.toObject() : product
-  if (!source) return source
-
-  return {
-    ...source,
-    images: [
-      {
-        public_id: 'ai_generated',
-        url: buildAiImageUrl(source.name)
-      }
-    ]
-  }
-}
-
 const getProducts = async (req, res) => {
   try {
     const { category, search } = req.query;
@@ -38,7 +18,7 @@ const getProducts = async (req, res) => {
     }
 
     const products = await Product.find(query).populate('category', 'name slug type').sort({ createdAt: -1 });
-    res.json({ success: true, data: products.map(withAiImage) });
+    res.json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -50,7 +30,7 @@ const getProductById = async (req, res) => {
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    res.json({ success: true, data: withAiImage(product) });
+    res.json({ success: true, data: product });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -58,10 +38,8 @@ const getProductById = async (req, res) => {
 
 const createProduct = async (req, res) => {
   try {
-    const payload = { ...req.body, user: req.user?._id };
-    payload.images = [{ public_id: 'ai_generated', url: buildAiImageUrl(payload.name) }];
-    const product = await Product.create(payload);
-    res.status(201).json({ success: true, data: withAiImage(product) });
+    const product = await Product.create({ ...req.body, user: req.user?._id });
+    res.status(201).json({ success: true, data: product });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -69,16 +47,11 @@ const createProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   try {
-    const update = { ...req.body };
-    if (update.name) {
-      update.images = [{ public_id: 'ai_generated', url: buildAiImageUrl(update.name) }];
-    }
-
-    const product = await Product.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    res.json({ success: true, data: withAiImage(product) });
+    res.json({ success: true, data: product });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -132,7 +105,7 @@ const createProductReview = async (req, res) => {
 const getTopProducts = async (req, res) => {
   try {
     const products = await Product.find({}).sort({ ratings: -1 }).limit(8).populate('category', 'name slug');
-    res.json({ success: true, data: products.map(withAiImage) });
+    res.json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
