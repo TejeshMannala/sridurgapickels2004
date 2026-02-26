@@ -1,8 +1,29 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { api, AUTH_EXPIRED_EVENT } from '../services/api'
+import { AUTH_EXPIRED_EVENT } from '../services/api'
 
 const AuthContext = createContext(null)
 const KEY = 'pickles_admin_auth'
+const normalizeApiBaseUrl = (value) => {
+  const raw = String(value || '').trim().replace(/\/+$/, '')
+  if (!raw) return 'http://localhost:5000/api/v1'
+  return raw.endsWith('/api/v1') ? raw : `${raw}/api/v1`
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
+
+const postJson = async (path, payload) => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  const json = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(json?.message || `Request failed with status ${response.status}`)
+  }
+  return json
+}
 
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(() => {
@@ -13,11 +34,11 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const normalizedEmail = String(email || '').trim().toLowerCase()
     const normalizedPassword = String(password || '')
-    const response = await api.post('/auth/login', {
+    const response = await postJson('/auth/login', {
       email: normalizedEmail,
       password: normalizedPassword
     })
-    const payload = response?.data?.data
+    const payload = response?.data
     if (!payload?.token || payload?.role !== 'admin') {
       throw new Error('Admin access required')
     }

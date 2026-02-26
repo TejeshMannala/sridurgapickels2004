@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { api, authHeaders } from '../services/api'
 import { useAuth } from './AuthContext'
+import { fallbackCategories, fallbackProducts } from '../data/fallbackCatalog'
 
 const SHOP_CONTEXT_KEY = '__pickles_shop_context__'
 const ShopContext = globalThis[SHOP_CONTEXT_KEY] || createContext(null)
@@ -60,11 +61,19 @@ export function ShopProvider({ children }) {
         setProducts(productRes.data?.data || [])
         setServiceUnavailable(false)
         setServiceMessage('')
+        return true
       } catch (error) {
+        if (markServiceUnavailable(error)) {
+          setCategories(fallbackCategories)
+          setProducts(fallbackProducts)
+          setServiceUnavailable(false)
+          setServiceMessage('')
+          return true
+        }
         setCategories([])
         setProducts([])
-        markServiceUnavailable(error)
         console.error('Failed to fetch catalog', error)
+        return false
       } finally {
         setLoading(false)
       }
@@ -205,14 +214,18 @@ export function ShopProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      if (bootstrapTokenRef.current === token) return
-      bootstrapTokenRef.current = token
-      fetchCart()
-      fetchWishlist()
-      fetchOrders()
-      fetchMyFeedback()
-    } else {
+    const bootstrapAuthenticatedData = async () => {
+      if (isAuthenticated) {
+        if (bootstrapTokenRef.current === token) return
+        bootstrapTokenRef.current = token
+
+        const catalogLoaded = await fetchCatalog()
+        if (!catalogLoaded) return
+
+        await Promise.allSettled([fetchCart(), fetchWishlist(), fetchOrders(), fetchMyFeedback()])
+        return
+      }
+
       bootstrapTokenRef.current = null
       setCart(null)
       setWishlist(null)
@@ -220,6 +233,8 @@ export function ShopProvider({ children }) {
       setFeedback([])
       setAdminFeedback([])
     }
+
+    bootstrapAuthenticatedData()
   }, [isAuthenticated])
 
   const value = useMemo(

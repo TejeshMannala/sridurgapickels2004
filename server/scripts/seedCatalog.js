@@ -142,6 +142,28 @@ const createProductsForCategory = (names, category, basePriceStart) =>
     tags: [category.slug, 'pickle', 'andhra']
   }));
 
+const buildFallbackCatalog = () => {
+  const categories = categoryData.map((category, index) => ({
+    _id: `fallback-category-${index + 1}`,
+    ...category
+  }));
+  const bySlug = categories.reduce((acc, item) => ({ ...acc, [item.slug]: item }), {});
+  const byId = categories.reduce((acc, item) => ({ ...acc, [item._id]: item }), {});
+
+  const products = [
+    ...createProductsForCategory(vegVarieties, bySlug['veg-pickles'], 120),
+    ...createProductsForCategory(nonVegVarieties, bySlug['non-veg-pickles'], 210),
+    ...createProductsForCategory(seafoodVarieties, bySlug['seafood-pickles'], 230),
+    ...createProductsForCategory(dryFruitVarieties, bySlug['dry-fruits'], 190)
+  ].map((product, index) => ({
+    ...product,
+    _id: `fallback-product-${index + 1}`,
+    category: byId[product.category] || product.category
+  }));
+
+  return { categories, products };
+};
+
 const syncCatalog = async ({ shouldConnect = true, shouldReset = null } = {}) => {
   try {
     if (shouldConnect) {
@@ -206,4 +228,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { syncCatalog };
+module.exports = { syncCatalog, buildFallbackCatalog };

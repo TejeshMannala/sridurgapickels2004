@@ -22,27 +22,29 @@ const scheduleReconnect = () => {
 
   reconnectTimer = setTimeout(async () => {
     reconnectTimer = null;
-    console.log("🔄 Attempting MongoDB reconnect...");
+    console.log('Attempting MongoDB reconnect...');
     await connectDB();
   }, 15000);
 };
 
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    return true;
-  } catch (error) {
-    console.error("MongoDB connection error:", error.message);
-    throw error; // IMPORTANT
+  if (isConnecting) return mongoose.connection.readyState === 1;
+  isConnecting = true;
+
+  const uris = getUris();
+  if (uris.length === 0) {
+    console.error(
+      'No MongoDB URI configured. Set MONGO_URI (or MONGO_URI_FALLBACK / MONGO_URI_LOCAL).'
+    );
+    isConnecting = false;
+    return false;
   }
-};
 
   let lastError;
 
   for (const uri of uris) {
     try {
-      // 🔥 Disconnect before retrying new URI
+      // Reset connection state before trying next URI.
       if (mongoose.connection.readyState !== 0) {
         await mongoose.disconnect();
       }
@@ -51,31 +53,31 @@ const connectDB = async () => {
         serverSelectionTimeoutMS: 5000,
       });
 
-      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      console.log(`MongoDB Connected: ${conn.connection.host}`);
       clearReconnectTimer();
       isConnecting = false;
       return true;
-
     } catch (error) {
       lastError = error;
-      console.error(`❌ MongoDB connection failed: ${error.message}`);
+      console.error(`MongoDB connection failed: ${error.message}`);
     }
   }
 
-  console.error('❌ All MongoDB connection attempts failed.');
+  console.error(
+    `All MongoDB connection attempts failed.${lastError ? ` Last error: ${lastError.message}` : ''}`
+  );
   isConnecting = false;
-
   scheduleReconnect();
   return false;
-
+};
 
 mongoose.connection.on('disconnected', () => {
-  console.warn('⚠ MongoDB disconnected.');
+  console.warn('MongoDB disconnected.');
   scheduleReconnect();
 });
 
 mongoose.connection.on('error', (error) => {
-  console.error(`⚠ MongoDB runtime error: ${error.message}`);
+  console.error(`MongoDB runtime error: ${error.message}`);
   scheduleReconnect();
 });
 

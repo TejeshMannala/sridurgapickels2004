@@ -1,6 +1,7 @@
 const Category = require('../models/categoryModel');
 const Product = require('../models/productModel');
-const { syncCatalog } = require('../scripts/seedCatalog');
+const mongoose = require('mongoose');
+const { syncCatalog, buildFallbackCatalog } = require('../scripts/seedCatalog');
 
 let catalogSyncPromise = null;
 
@@ -30,6 +31,11 @@ const ensureCatalogAvailable = async () => {
 
 const getCategories = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      const { categories } = buildFallbackCatalog();
+      return res.json({ success: true, data: categories });
+    }
+
     await ensureCatalogAvailable();
     const categories = await Category.find({}).sort({ name: 1 });
     res.json({ success: true, data: categories });

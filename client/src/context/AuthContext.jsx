@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
 import { AUTH_EXPIRED_EVENT } from '../services/api'
 
 const AuthContext = createContext(null)
@@ -13,6 +12,22 @@ const normalizeApiBaseUrl = (value) => {
 const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 const AUTH_STORAGE_KEY = 'pickles_auth'
 
+const postJson = async (path, payload) => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  const json = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(json?.message || `Request failed with status ${response.status}`)
+  }
+
+  return json
+}
+
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(() => {
     try {
@@ -25,11 +40,11 @@ export function AuthProvider({ children }) {
   })
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+    const response = await postJson('/auth/login', {
       email: String(email || '').trim().toLowerCase(),
       password: String(password || '')
     })
-    const payload = response?.data?.data
+    const payload = response?.data
     if (!payload?.token) {
       throw new Error('Invalid login response from server')
     }
@@ -39,8 +54,8 @@ export function AuthProvider({ children }) {
   }
 
   const register = async (name, email, password) => {
-    const response = await axios.post(`${API_BASE_URL}/auth/register`, { name, email, password })
-    const payload = response?.data?.data
+    const response = await postJson('/auth/register', { name, email, password })
+    const payload = response?.data
     if (!payload?.token) {
       throw new Error('Invalid register response from server')
     }

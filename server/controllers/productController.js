@@ -1,6 +1,7 @@
 const Product = require('../models/productModel');
 const Category = require('../models/categoryModel');
-const { syncCatalog } = require('../scripts/seedCatalog');
+const mongoose = require('mongoose');
+const { syncCatalog, buildFallbackCatalog } = require('../scripts/seedCatalog');
 
 let catalogSyncPromise = null;
 
@@ -29,6 +30,22 @@ const getProducts = async (req, res) => {
     const { category, search } = req.query;
     const query = {};
 
+    if (mongoose.connection.readyState !== 1) {
+      const { products } = buildFallbackCatalog();
+      const categoryFilter = String(category || '').trim().toLowerCase();
+      const searchFilter = String(search || '').trim().toLowerCase();
+
+      const filtered = products.filter((product) => {
+        const categoryMatch =
+          !categoryFilter || String(product?.category?.slug || '').toLowerCase() === categoryFilter;
+        const searchMatch =
+          !searchFilter || String(product?.name || '').toLowerCase().includes(searchFilter);
+        return categoryMatch && searchMatch;
+      });
+
+      return res.json({ success: true, data: filtered });
+    }
+
     if (category) {
       const categoryDoc = await Category.findOne({ slug: category });
       if (categoryDoc) {
@@ -51,6 +68,17 @@ const getProducts = async (req, res) => {
 
 const getProductById = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      const { products } = buildFallbackCatalog();
+      const product = products.find(
+        (item) => item._id === req.params.id || item.slug === req.params.id
+      );
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
+      return res.json({ success: true, data: product });
+    }
+
     const product = await Product.findById(req.params.id).populate('category', 'name slug type');
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
@@ -129,6 +157,11 @@ const createProductReview = async (req, res) => {
 
 const getTopProducts = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      const { products } = buildFallbackCatalog();
+      return res.json({ success: true, data: products.slice(0, 8) });
+    }
+
     const products = await Product.find({}).sort({ ratings: -1 }).limit(8).populate('category', 'name slug');
     res.json({ success: true, data: products });
   } catch (error) {

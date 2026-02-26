@@ -40,7 +40,9 @@ if (process.env.NODE_ENV === 'development') {
 // Enable CORS
 const cors = require('cors');
 const allowedOrigins = new Set([
+  'https://kanakadurgapickels-admin.onrender.com',
   'https://kankadurgapickels-admin.onrender.com',
+  'https://kanakadurgapickels.onrender.com',
   'https://kanakdurgapickels.onrender.com',
   'http://localhost:3000',
   'http://localhost:3001',
@@ -48,19 +50,25 @@ const allowedOrigins = new Set([
   String(process.env.ADMIN_URL || '').trim(),
 ].filter(Boolean));
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests without Origin (curl, server-to-server, health checks).
-      if (!origin || allowedOrigins.has(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    const isLocalDevOrigin =
+      typeof origin === 'string' &&
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+
+    // Allow requests without Origin (curl, server-to-server, health checks).
+    if (!origin || isLocalDevOrigin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Rate limiting
 const rateLimit = require('express-rate-limit');
@@ -110,14 +118,41 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // Return a clear response while DB is unavailable, instead of Mongoose buffer errors.
-app.use('/api/v1', (req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
+app.use('/api/v1', async (req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const isPublicCatalogRoute =
+    req.path === '/products' ||
+    req.path.startsWith('/products/') ||
+    req.path === '/categories' ||
+    req.path.startsWith('/categories/');
+  if (isPublicCatalogRoute) {
+    return next();
+  }
+
+  // readyState: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  // Allow active/ongoing connections to proceed.
+  if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+    return next();
+  }
+
+  try {
+    const reconnected = await connectDB();
+    if (reconnected || mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+      return next();
+    }
+  } catch (error) {
+    console.error(`DB reconnect middleware error: ${error.message}`);
+  }
+
+  {
     return res.status(503).json({
       success: false,
       message: 'Database is not connected. Please try again in a moment.',
     });
   }
-  next();
 });
 
 // Routes
@@ -126,11 +161,13 @@ const tryMountRoute = (basePath, routeFile) => {
   if (fs.existsSync(fullPath)) {
     try {
       app.use(basePath, require(`./routes/${routeFile}`));
+      console.log(`Mounted ${basePath} from routes/${routeFile}`);
     } catch (error) {
-      console.warn(`Skipping ${basePath}: failed to load routes/${routeFile} (${error.message})`);
+      console.error(`Failed to load ${basePath} from routes/${routeFile}: ${error.message}`);
+      throw error;
     }
   } else {
-    console.warn(`Skipping ${basePath}: missing routes/${routeFile}`);
+    throw new Error(`Missing required route file: routes/${routeFile}`);
   }
 };
 
