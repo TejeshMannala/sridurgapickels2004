@@ -41,6 +41,7 @@ if (process.env.NODE_ENV === 'development') {
 const cors = require('cors');
 const allowedOrigins = new Set([
   'https://kanakadurgapickels-admin.onrender.com',
+  'https://sridurgapickels-admin.onrender.com',
   'https://kankadurgapickels-admin.onrender.com',
   'https://kanakadurgapickels.onrender.com',
   'https://kanakdurgapickels.onrender.com',
