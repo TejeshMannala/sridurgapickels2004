@@ -2,7 +2,12 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { api, authHeaders } from '../services/api'
 import { useAuth } from './AuthContext'
 
-const ShopContext = createContext(null)
+const SHOP_CONTEXT_KEY = '__pickles_shop_context__'
+const ShopContext = globalThis[SHOP_CONTEXT_KEY] || createContext(null)
+
+if (!globalThis[SHOP_CONTEXT_KEY]) {
+  globalThis[SHOP_CONTEXT_KEY] = ShopContext
+}
 
 export function ShopProvider({ children }) {
   const { auth, isAuthenticated } = useAuth()
@@ -18,6 +23,18 @@ export function ShopProvider({ children }) {
   const [feedback, setFeedback] = useState([])
   const [adminFeedback, setAdminFeedback] = useState([])
   const [loading, setLoading] = useState(false)
+  const [serviceUnavailable, setServiceUnavailable] = useState(false)
+  const [serviceMessage, setServiceMessage] = useState('')
+
+  const markServiceUnavailable = (error) => {
+    const status = error?.response?.status
+    if (status === 503) {
+      setServiceUnavailable(true)
+      setServiceMessage(error?.response?.data?.message || 'Service is temporarily unavailable. Please try again shortly.')
+      return true
+    }
+    return false
+  }
 
   const runDeduped = (key, requestFn) => {
     if (inFlightRef.current[key]) return inFlightRef.current[key]
@@ -41,9 +58,12 @@ export function ShopProvider({ children }) {
         const [categoryRes, productRes] = await Promise.all([api.get('/categories'), api.get('/products')])
         setCategories(categoryRes.data?.data || [])
         setProducts(productRes.data?.data || [])
+        setServiceUnavailable(false)
+        setServiceMessage('')
       } catch (error) {
         setCategories([])
         setProducts([])
+        markServiceUnavailable(error)
         console.error('Failed to fetch catalog', error)
       } finally {
         setLoading(false)
@@ -52,33 +72,35 @@ export function ShopProvider({ children }) {
   }
 
   const fetchCart = async () => {
-    if (!token) return
+    if (!token || serviceUnavailable) return
     return runDeduped('cart', async () => {
       try {
         const response = await api.get('/cart', authHeaders(token))
         setCart(response.data?.data || null)
       } catch (error) {
         setCart(null)
+        markServiceUnavailable(error)
         console.error('Failed to fetch cart', error)
       }
     })
   }
 
   const fetchWishlist = async () => {
-    if (!token) return
+    if (!token || serviceUnavailable) return
     return runDeduped('wishlist', async () => {
       try {
         const response = await api.get('/wishlist', authHeaders(token))
         setWishlist(response.data?.data || null)
       } catch (error) {
         setWishlist(null)
+        markServiceUnavailable(error)
         console.error('Failed to fetch wishlist', error)
       }
     })
   }
 
   const fetchOrders = async () => {
-    if (!token) return
+    if (!token || serviceUnavailable) return
     return runDeduped('orders', async () => {
       try {
         const response = await api.get('/orders/mine', authHeaders(token))
@@ -86,6 +108,7 @@ export function ShopProvider({ children }) {
         return response.data?.data || []
       } catch (error) {
         setOrders([])
+        markServiceUnavailable(error)
         console.error('Failed to fetch orders', error)
         return []
       }
@@ -132,7 +155,7 @@ export function ShopProvider({ children }) {
   }
 
   const fetchMyFeedback = async () => {
-    if (!token) return []
+    if (!token || serviceUnavailable) return []
     return runDeduped('support', async () => {
       try {
         const response = await api.get('/support', authHeaders(token))
@@ -141,6 +164,7 @@ export function ShopProvider({ children }) {
         return list
       } catch (error) {
         setFeedback([])
+        markServiceUnavailable(error)
         console.error('Failed to fetch feedback', error)
         return []
       }
@@ -154,7 +178,7 @@ export function ShopProvider({ children }) {
   }
 
   const fetchAdminFeedback = async () => {
-    if (!token) return []
+    if (!token || serviceUnavailable) return []
     return runDeduped('adminSupport', async () => {
       try {
         const response = await api.get('/support/admin', authHeaders(token))
@@ -163,6 +187,7 @@ export function ShopProvider({ children }) {
         return list
       } catch (error) {
         setAdminFeedback([])
+        markServiceUnavailable(error)
         console.error('Failed to fetch admin feedback', error)
         return []
       }
@@ -207,6 +232,8 @@ export function ShopProvider({ children }) {
       feedback,
       adminFeedback,
       loading,
+      serviceUnavailable,
+      serviceMessage,
       fetchCatalog,
       fetchCart,
       fetchWishlist,
@@ -222,7 +249,7 @@ export function ShopProvider({ children }) {
       fetchAdminFeedback,
       replyFeedback
     }),
-    [categories, products, cart, wishlist, orders, feedback, adminFeedback, loading]
+    [categories, products, cart, wishlist, orders, feedback, adminFeedback, loading, serviceUnavailable, serviceMessage]
   )
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>

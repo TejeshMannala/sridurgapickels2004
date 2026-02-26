@@ -4,7 +4,7 @@ import ProductCard from '../components/ProductCard'
 import { useShop } from '../context/ShopContext'
 
 function Shop() {
-  const { categories, products } = useShop()
+  const { categories, products, serviceUnavailable, serviceMessage } = useShop()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialCategory = searchParams.get('category') || 'all'
   const [activeSlug, setActiveSlug] = useState(initialCategory)
@@ -29,6 +29,11 @@ function Shop() {
   return (
     <section id="shop-top" className="mx-auto max-w-7xl px-4 py-10">
       <h1 className="text-3xl font-bold">Pickles & Dry Fruits Store</h1>
+      {serviceUnavailable ? (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {serviceMessage || 'Server is temporarily unavailable. Please try again in a moment.'}
+        </div>
+      ) : null}
       <div className="mt-6 flex flex-wrap gap-2">
         <button
           type="button"

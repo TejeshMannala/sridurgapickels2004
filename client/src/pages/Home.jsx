@@ -24,7 +24,7 @@ const sectionLimits = {
 }
 
 function Home() {
-  const { categories, products, loading } = useShop()
+  const { categories, products, loading, serviceUnavailable, serviceMessage } = useShop()
   const [slideIndex, setSlideIndex] = useState(0)
 
   const slides = useMemo(() => {
@@ -145,6 +145,11 @@ function Home() {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pt-8">
+        {serviceUnavailable ? (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {serviceMessage || 'Server is temporarily unavailable. Please try again in a moment.'}
+          </div>
+        ) : null}
         {loading ? (
           <p className="text-gray-600">Loading products...</p>
         ) : (

@@ -21,7 +21,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Sri Kanaka Durga Pickles API is running',
+    message: '  Kanaka Durga Pickles API is running',
     health: '/health',
     apiHealth: '/api/v1/health'
   });
@@ -40,8 +40,8 @@ if (process.env.NODE_ENV === 'development') {
 // Enable CORS
 const cors = require('cors');
 const allowedOrigins = new Set([
-  'https://sridurgapickels-admin.onrender.com',
-  'https://sridurgapickels.onrender.com',
+  'https://kankadurgapickels-admin.onrender.com',
+  'https://kanakdurgapickels.onrender.com',
   'http://localhost:3000',
   'http://localhost:3001',
   String(process.env.CLIENT_URL || '').trim(),
@@ -89,7 +89,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     status: 'ok',
-    service: 'sri-kanaka-durga-pickles-server',
+    service: 'kanaka-durga-pickles-server',
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString()
   });
@@ -103,7 +103,7 @@ app.get('/api/v1/health', (req, res) => {
     success: dbConnected,
     status: dbConnected ? 'ok' : 'degraded',
     database: dbConnected ? 'connected' : 'disconnected',
-    service: 'sri-kanaka-durga-pickles-server',
+    service: 'kanaka-durga-pickles-server',
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString()
   });
@@ -185,36 +185,36 @@ const ensureAdminUser = async () => {
   });
   console.log(`Admin user created: ${email}`);
 };
-
 const startServer = async () => {
-  const dbConnected = await connectDB();
+  try {
+    const dbConnected = await connectDB();
 
-  if (dbConnected) {
-    try {
-      await ensureAdminUser();
-      const productCount = await Product.estimatedDocumentCount();
-      const autoSeedEnabled = String(process.env.AUTO_SEED_CATALOG || 'true').toLowerCase() !== 'false';
-      if (autoSeedEnabled && productCount === 0) {
-        console.log('Catalog is empty. Running initial catalog seed...');
-        await syncCatalog({ shouldConnect: false, shouldReset: false });
-      }
-    } catch (error) {
-      console.error(`Startup sync failed: ${error.message}`);
+    if (!dbConnected) {
+      console.error("❌ MongoDB connection failed. Server not started.");
+      process.exit(1); // STOP server if DB fails
     }
-  }
 
-  server = app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-  });
+    await ensureAdminUser();
 
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`Port ${PORT} is already in use. Stop the existing process or change PORT in server/.env.`);
-      process.exit(1);
+    const productCount = await Product.estimatedDocumentCount();
+    const autoSeedEnabled =
+      String(process.env.AUTO_SEED_CATALOG || 'true').toLowerCase() !== 'false';
+
+    if (autoSeedEnabled && productCount === 0) {
+      console.log('Catalog is empty. Running initial catalog seed...');
+      await syncCatalog({ shouldConnect: false, shouldReset: false });
     }
-    console.error(`Server startup error: ${err.message}`);
+
+    server = app.listen(PORT, () => {
+      console.log(
+        `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
+      );
+    });
+
+  } catch (error) {
+    console.error(`❌ Startup failed: ${error.message}`);
     process.exit(1);
-  });
+  }
 };
 
 startServer();

@@ -1,6 +1,12 @@
 import axios from 'axios'
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'
+const normalizeApiBaseUrl = (value) => {
+  const raw = String(value || '').trim().replace(/\/+$/, '')
+  if (!raw) return 'http://localhost:5000/api/v1'
+  return raw.endsWith('/api/v1') ? raw : `${raw}/api/v1`
+}
+
+const baseURL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 export const AUTH_EXPIRED_EVENT = 'pickles_admin:auth-expired'
 
 export const api = axios.create({ baseURL })
