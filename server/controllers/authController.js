@@ -92,14 +92,19 @@ const loginUser = async (req, res) => {
           token: generateToken(user._id)
         }
       });
-    } else {
-      res.status(401);
-      throw new Error('Invalid email or password');
     }
-  } catch (error) {
-    res.status(401).json({
+    return res.status(401).json({
       success: false,
-      message: error.message
+      message: 'Invalid email or password'
+    });
+  } catch (error) {
+    const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
+    res.status(statusCode).json({
+      success: false,
+      message:
+        statusCode === 500
+          ? 'Login failed due to a server error. Please try again.'
+          : error.message
     });
   }
 };

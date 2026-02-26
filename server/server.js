@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorMiddleware');
 const mongoose = require('mongoose');
+const User = require('./models/userModel');
 const Product = require('./models/productModel');
 const { syncCatalog } = require('./scripts/seedCatalog');
 const cors = require('cors');
@@ -114,6 +115,40 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 let server;
 
+const ensureAdminUser = async () => {
+  const email = String(process.env.ADMIN_EMAIL || 'admin@pickles.com').trim().toLowerCase();
+  const password = String(process.env.ADMIN_PASSWORD || 'Admin@123');
+
+  if (!email || !password) return;
+
+  const existing = await User.findOne({ email }).select('+password');
+  if (existing) {
+    let changed = false;
+    if (existing.role !== 'admin') {
+      existing.role = 'admin';
+      changed = true;
+    }
+
+    // Keep admin credentials in sync with env for reliable dashboard login.
+    existing.password = password;
+    changed = true;
+
+    if (changed) {
+      await existing.save();
+      console.log(`Admin user synced: ${email}`);
+    }
+    return;
+  }
+
+  await User.create({
+    name: 'Admin',
+    email,
+    password,
+    role: 'admin',
+  });
+  console.log(`Admin user created: ${email}`);
+};
+
 const startServer = async () => {
   try {
     const dbConnected = await connectDB();
@@ -121,6 +156,8 @@ const startServer = async () => {
       console.error('MongoDB connection failed. Server not started.');
       process.exit(1);
     }
+
+    await ensureAdminUser();
 
     const productCount = await Product.estimatedDocumentCount();
     if (productCount === 0) {
