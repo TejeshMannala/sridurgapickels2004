@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Line, Pie } from 'react-chartjs-2'
-import { ArcElement, Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from 'chart.js'
+import { ArcElement, Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js'
 import { toast } from 'react-toastify'
 import { api, authHeaders } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend, Filler)
 
 function Revenue() {
   const { token } = useAuth()
